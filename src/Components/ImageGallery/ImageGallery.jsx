@@ -38,4 +38,5 @@ imageGallery.propTypes = {
   response: PropTypes.array,
   emptyResponse: PropTypes.bool,
   isLoading: PropTypes.bool,
+  onImageClick: PropTypes.func,
 };

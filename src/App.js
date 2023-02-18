@@ -1,135 +1,115 @@
-import React, { Component } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppStyle } from './App.styled';
 import { Searchbar, ImageGallery, OpenModal, Button } from './Components';
 import axios from 'axios';
 
-export default class App extends Component {
-  state = {
-    query: '',
-    modal: false,
-    page: 1,
-    largeImageUrl: '',
-    imageList: [],
-    isLoading: false,
-    emptyResponse: false,
-    totalHits: 0,
-  };
+export default function App() {
+  const [query, setQuery] = useState('');
+  const [modal, setModal] = useState(false);
+  const [page, setPage] = useState(1);
+  const [largeImageUrl, setLargeImageUrl] = useState('');
+  const [imageList, setImageList] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [emptyResponse, setEmptyResponse] = useState(false);
+  const [totalHits, setTotalHits] = useState(0);
 
-  componentDidUpdate(prevProps, prevState) {
-    if (
-      prevState.query !== this.state.query ||
-      prevState.page !== this.state.page
-    ) {
-      this.onSearchRequest();
+  useEffect(() => {
+    if (query === '') {
+      return;
     }
-  }
 
-  // ===query request method===
-  onSearchRequest() {
-    this.spinnerOn();
+    function onSearchRequest() {
+      spinnerToggle(true);
+      const KEY = '32075942-33ac7ec23728def8e99295683';
+      const perPage = 12;
+      const URL = `https://pixabay.com/api/?q=${query}&page=${page}&key=${KEY}&image_type=photo&orientation=horizontal&per_page=${perPage}`;
 
-    const KEY = '32075942-33ac7ec23728def8e99295683';
-    const perPage = 12;
-    const { page, query } = this.state;
-    const URL = `https://pixabay.com/api/?q=${query}&page=${page}&key=${KEY}&image_type=photo&orientation=horizontal&per_page=${perPage}`;
+      axios
+        .get(URL)
+        .then(response => {
+          onEmptyResponse(response);
 
-    axios
-      .get(URL)
-      .then(response => {
-        this.onEmptyResponse(response);
-
-        if (response.status === 200) {
-          setTimeout(() => this.spinnerOff(), 500);
-        }
-
-        this.setState(prevState => {
-          return {
-            imageList: [].concat(prevState.imageList, response.data.hits),
-            totalHits: response.data.totalHits,
-          };
+          if (response.status === 200) {
+            setTimeout(() => spinnerToggle(false), 500);
+          }
+          setImageList(prevArray => [].concat(prevArray, response.data.hits));
+          setTotalHits(response.data.totalHits);
+        })
+        .catch(function (error) {
+          throw new Error(error);
         });
-      })
-      .catch(function (error) {
-        console.log(error);
-      });
-  }
+    }
+
+    onSearchRequest();
+  }, [query, page]);
 
   // ===Spinner on/off===
-
-  spinnerOn() {
-    this.setState({ isLoading: true });
-  }
-
-  spinnerOff() {
-    this.setState({ isLoading: false });
+  function spinnerToggle(value) {
+    setIsLoading(value);
   }
 
   // ===check response, if response empty paste plug===
-
-  onEmptyResponse(response) {
+  function onEmptyResponse(response) {
     response.data.hits.length === 0
-      ? this.setState({ emptyResponse: true })
-      : this.setState({ emptyResponse: false });
+      ? setEmptyResponse(true)
+      : setEmptyResponse(false);
   }
 
   // === SearchForm ===
-  handleSearchFormSubmit = searchQuery => {
-    this.setState({ query: searchQuery, imageList: [], page: 1, totalHits: 0 });
-  };
+  function handleSearchFormSubmit(searchQuery) {
+    setQuery(searchQuery);
+    setImageList([]);
+    setPage(1);
+    setTotalHits(0);
+  }
 
   // === Page increment ===
-  handleChangePage = () => {
-    this.setState(prevState => {
-      return { page: prevState.page + 1 };
-    });
-  };
+  function handleChangePage() {
+    setPage(page + 1);
+  }
 
   // === Modal ====
-  handleModalOpen = event => {
+  function handleModalOpen(event) {
     const smallImageSrc = event.target.currentSrc;
-    const chosenImage = this.state.imageList.find(
+    const chosenImage = imageList.find(
       item => item.webformatURL === smallImageSrc
     );
-    this.setState({ largeImageUrl: chosenImage.largeImageURL });
-    this.setState({ modal: true });
-  };
-
-  handleCloseModal = e => {
-    if (e.target.tagName === 'DIV' || e.target.code === 'Escape') {
-      this.setState({ modal: false });
-    }
-  };
-
-  handleOnBtnCloseModal = () => {
-    this.setState({ modal: false });
-  };
-
-  //===Render===
-  render() {
-    return (
-      <AppStyle
-        onClick={this.handleCloseModal}
-        onKeyDown={this.handleCloseModal}
-        tabIndex="0"
-      >
-        <Searchbar onFormSubmit={this.handleSearchFormSubmit} />
-        <ImageGallery
-          response={this.state.imageList}
-          isLoading={this.state.isLoading}
-          emptyResponse={this.state.emptyResponse}
-          onImageClick={this.handleModalOpen}
-        />
-        {this.state.modal && (
-          <OpenModal
-            largeImage={this.state.largeImageUrl}
-            onBtnCloseModal={this.handleOnBtnCloseModal}
-          />
-        )}
-        {this.state.imageList.length > 0 &&
-          this.state.imageList.length < this.state.totalHits && (
-            <Button onBtnClick={this.handleChangePage} />
-          )}
-      </AppStyle>
-    );
+    setLargeImageUrl(chosenImage.largeImageURL);
+    setModal(true);
   }
+
+  function handleCloseModal(e) {
+    if (e.target.tagName === 'DIV' || e.target.code === 'Escape') {
+      setModal(false);
+    }
+  }
+
+  function handleOnBtnCloseModal() {
+    setModal(false);
+  }
+
+  return (
+    <AppStyle
+      onClick={handleCloseModal}
+      onKeyDown={handleCloseModal}
+      tabIndex="0"
+    >
+      <Searchbar onFormSubmit={handleSearchFormSubmit} />
+      <ImageGallery
+        response={imageList}
+        isLoading={isLoading}
+        emptyResponse={emptyResponse}
+        onImageClick={handleModalOpen}
+      />
+      {modal && (
+        <OpenModal
+          largeImage={largeImageUrl}
+          onBtnCloseModal={handleOnBtnCloseModal}
+        />
+      )}
+      {imageList.length > 0 && imageList.length < totalHits && (
+        <Button onBtnClick={handleChangePage} />
+      )}
+    </AppStyle>
+  );
 }
